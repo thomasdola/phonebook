@@ -1,52 +1,169 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import React, { useCallback, useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
+import { Button, ButtonGroup, TextArea, HotkeysTarget2 as HotkeysTarget, Dialog, DialogBody, DialogFooter } from "@blueprintjs/core";
+import { Column, Table2 as Table, Cell } from "@blueprintjs/table";
+import '@blueprintjs/core/lib/css/blueprint.css';
+import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+import "@blueprintjs/table/lib/css/table.css"
+import "@blueprintjs/popover2/lib/css/blueprint-popover2.css";
+// import { geocoder, carrier, timezones, parsePhoneNumberFromString } from '@devmehq/phone-number-validator-js'
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    setGreetMsg(await invoke("greet", { name }));
+const columnIndexToName = index => {
+  switch (index) {
+    case 0:
+      return "digits";
+    case 1:
+      return "is_valid";
+    case 2:
+      return "carrier";
+    case 3:
+      return "email";
+    case 4:
+      return "international";
+    case 5:
+      return "national";
+    case 6:
+      return "e164";
+    case 7:
+      return "rfc3966";
+    default:
+      return null;
   }
+}
+
+const ControlPanel = () => (
+  <ButtonGroup minimal>
+    <Button icon="clipboard" />
+    <Button icon="archive" />
+  </ButtonGroup>
+)
+
+const Dump = ({ isOpen, onClose, text, setText }) => {
+
+
+  const handleClick = useCallback(() => {
+    invoke("parse", { text })
+  }, [text])
 
   return (
-    <div className="container">
-      <h1>Welcome to Tauri!</h1>
+    <Dialog isOpen={isOpen} onClose={onClose} canEscapeKeyClose={true} canOutsideClickClose={false}>
+      <DialogBody>
+        <TextArea onChange={e => setText(e.target.value)} value={text} style={{ minHeight: 300 }} fill={true} />
+      </DialogBody>
+      <DialogFooter actions={<Button disabled={text.trim().length === 0} intent="primary" text="Extract" onClick={handleClick} />} />
+    </Dialog>
+  )
+}
 
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
+function App() {
+  const [numbers, setNumbers] = useState([]);
+  const [newModalVisible, setNewModalVisible] = useState(false);
+  const [text, setText] = useState("");
 
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+  const getCellData = (rowIndex, columnIndex) => {
+    const number = numbers[rowIndex];
+    if (!number) return null;
+    const name = columnIndexToName(columnIndex);
+    if (!name) return null;
+    if (name === "is_valid") return number[name] ? "Yes" : "No";
+    return number[name];
+  };
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
+  const cellRenderer = (rowIndex, columnIndex) => (
+    <Cell>{getCellData(rowIndex, columnIndex)}</Cell>
+  );
 
-      <p>{greetMsg}</p>
-    </div>
+  useEffect(() => {
+    invoke("fetch", { filter: {} }).then(numbers => {
+      console.log({ numbers })
+      setNumbers(numbers)
+    })
+    listen('numbers::extracted', async () => {
+      const filter = {}
+      const numbers = await invoke("fetch", { filter })
+
+      console.log({ numbers })
+      setNumbers(numbers)
+      setNewModalVisible(false)
+      setText("")
+    })
+  }, [])
+
+  const hotkeys = [
+    {
+      combo: "ctrl + n",
+      global: true,
+      label: "New data",
+      onKeyDown: () => !newModalVisible && setNewModalVisible(true)
+    },
+
+    {
+      combo: "ctrl + alt + shift + meta + w",
+      global: true,
+      label: "Wipe data",
+      onKeyDown: () => {
+        invoke("wipe")
+        setNumbers([])
+      }
+    }
+  ];
+
+  return (
+    <>
+      <HotkeysTarget hotkeys={hotkeys}>
+        {({ handleKeyDown, handleKeyUp }) => (
+          <div className="container" onKeyDown={handleKeyDown} onKeyUp={handleKeyUp}>
+            <Table numRows={numbers.length}>
+              <Column
+                cellRenderer={cellRenderer}
+                key={"digits"}
+                name={"Extracted"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"valid"}
+                name={"Valid"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"Carrier"}
+                name={"Carrier"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"Email"}
+                name={"Email"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"International"}
+                name={"International"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"National"}
+                name={"National"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"E164"}
+                name={"E164"}
+              />
+              <Column
+                cellRenderer={cellRenderer}
+                key={"Rfc3966"}
+                name={"Rfc3966"}
+              />
+            </Table>
+
+          </div>
+        )}
+      </HotkeysTarget>
+
+      <Dump text={text} setText={setText} isOpen={newModalVisible} onClose={() => setNewModalVisible(false)} />
+    </>
   );
 }
 

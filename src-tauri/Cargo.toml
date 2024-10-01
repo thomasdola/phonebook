@@ -14,6 +14,12 @@ tauri-build = { version = "1", features = [] }
 tauri = { version = "1", features = ["shell-open"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+regex = "1.10.6"
+diesel = { version = "2.2.4", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
+diesel_migrations = { version = "2.2.0", features = ["sqlite"] }
+dotenvy = "0.15"
+chrono = "0.4.23"
+phonenumber = "0.3"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
