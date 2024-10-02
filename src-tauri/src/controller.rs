@@ -1,22 +1,20 @@
-use crate::{
-    db::{self, NumberFilter},
-    models::Number,
-};
 use tauri::Manager;
+use serde::Serialize;
 
 use phonenumber::country;
 use phonenumber::Mode;
 
-#[tauri::command]
-pub fn wipe() {
-    println!("wipe db");
-    db::delete_all_numbers()
-}
-
-#[tauri::command]
-pub fn fetch(filter: NumberFilter) -> Vec<Number> {
-    println!("fetch {:?}", filter);
-    db::get_numbers(filter)
+#[derive(Debug, Serialize, Clone)]
+pub struct Number {
+    pub id: Option<i32>,
+    pub digits: String,
+    pub is_valid: bool,
+    pub international: Option<String>,
+    pub national: Option<String>,
+    pub rfc3966: Option<String>,
+    pub e164: Option<String>,
+    pub email: Option<String>,
+    pub carrier: Option<String>,
 }
 
 #[tauri::command]
@@ -24,8 +22,7 @@ pub fn parse(text: &str, app_handle: tauri::AppHandle) {
     println!("parse {:?}", text);
     let numbers = extract_numbers(text);
     println!("numbers {:?}", numbers);
-    db::insert_numbers(numbers);
-    app_handle.emit_all("numbers::extracted", "").unwrap();
+    app_handle.emit_all("numbers::extracted", numbers).unwrap();
 }
 
 use regex::Regex;

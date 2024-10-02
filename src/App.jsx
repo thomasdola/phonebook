@@ -76,15 +76,7 @@ function App() {
   );
 
   useEffect(() => {
-    invoke("fetch", { filter: {} }).then(numbers => {
-      console.log({ numbers })
-      setNumbers(numbers)
-    })
-    listen('numbers::extracted', async () => {
-      const filter = {}
-      const numbers = await invoke("fetch", { filter })
-
-      console.log({ numbers })
+    listen('numbers::extracted', async ({payload: numbers}) => {
       setNumbers(numbers)
       setNewModalVisible(false)
       setText("")
@@ -104,7 +96,6 @@ function App() {
       global: true,
       label: "Wipe data",
       onKeyDown: () => {
-        invoke("wipe")
         setNumbers([])
       }
     }
